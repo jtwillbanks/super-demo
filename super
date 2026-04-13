@@ -434,14 +434,6 @@ set_defaults() {
 	readonly SUPER_MANAGED_PLIST
 	# IMPORTANT DETAIL: While you can customize the identifier "com.macjutsu.super", you must keep the "/Library/Managed Preferences/" folder path intact.
 	
-	# Path to optional managed custom text property list file:
-	SUPER_CUSTOMTEXT_MANAGED_PLIST="/Library/Managed Preferences/com.macjutsu.super.customtext" # No trailing ".plist"
-	readonly SUPER_CUSTOMTEXT_MANAGED_PLIST
-
-	# Path to optional local custom text property list file:
-	SUPER_CUSTOMTEXT_LOCAL_PLIST="${SUPER_FOLDER}/com.macjutsu.super.customtext" # No trailing ".plist"
-	readonly SUPER_CUSTOMTEXT_LOCAL_PLIST
-	
 	# Path to the alternate configuration folder:
 	SUPER_CONFIGS_FOLDER="${SUPER_FOLDER}/configs"
 	readonly SUPER_CONFIGS_FOLDER
@@ -1198,220 +1190,6 @@ get_pref() {
 		fi
 	fi
 	return 1
-}
-
-# Gets custom text preference by name ${1} searching the custom plist for dialog text adjustments
-get_custom_text_pref() {
-	local preference_result
-
-	if [[ -f "${SUPER_CUSTOMTEXT_MANAGED_PLIST}.plist" ]]; then
-		preference_result=$(defaults read "${SUPER_CUSTOMTEXT_MANAGED_PLIST}" "${1}" 2>/dev/null)
-	fi
-
-	if [[ -z "${preference_result}" ]] && [[ -f "${SUPER_CUSTOMTEXT_LOCAL_PLIST}.plist" ]]; then
-		preference_result=$(defaults read "${SUPER_CUSTOMTEXT_LOCAL_PLIST}" "${1}" 2>/dev/null)
-	fi
-
-	[[ -n "${preference_result}" ]] && echo "${preference_result}" && return 0
-	return 1
-}
-
-# Convert line breaks to \n for easy end-user experience
-normalize_custom_text_value() {
-	local raw_value="$1"
-	raw_value="${raw_value//$'\r'/}"
-	raw_value="${raw_value//$'\n'/\\n}"
-	printf '%s' "${raw_value}"
-}
-
-substitute_custom_text_placeholders() {
-	local text_value="$1"
-
-	text_value="${text_value//%WORKFLOW_TITLE%/${display_string_workflow_title}}"
-	text_value="${text_value//%JAMF_POLICY_TRIGGER%/${jamf_policy_trigger}}"
-	text_value="${text_value//%STORAGE_AVAILABLE_GB%/${storage_available_gigabytes}}"
-	text_value="${text_value//%STORAGE_REQUIRED_GB%/${storage_required_gigabytes}}"
-	text_value="${text_value//%DEADLINE_COUNT%/${display_string_deadline_count}}"
-	text_value="${text_value//%DEADLINE_COUNT_MAXIMUM%/${display_string_deadline_count_maximum}}"
-	text_value="${text_value//%SCHEDULED_INSTALL%/${display_string_scheduled_install}}"
-	text_value="${text_value//%DEADLINE%/${display_string_deadline}}"
-	text_value="${text_value//%PREPARE_TIME_ESTIMATE_MINUTES%/${display_string_prepare_time_estimate}}"
-	text_value="${text_value//%CURRENT_USER_REAL_NAME%/${current_user_real_name}}"
-
-	printf '%s' "${text_value}"
-}
-
-# Override variable using custom text key, if used
-load_custom_text_override() {
-	local target_var_name="$1"
-	local custom_key_name="$2"
-	local loaded_value
-	local normalized_value
-	local substituted_value
-
-	loaded_value=$(get_custom_text_pref "${custom_key_name}") || return 0
-	[[ -z "${loaded_value}" ]] && return 0
-
-	normalized_value=$(normalize_custom_text_value "${loaded_value}")
-	substituted_value=$(substitute_custom_text_placeholders "${normalized_value}")
-
-	printf -v "${target_var_name}" '%s' "${substituted_value}"
-
-	if [[ -z "${custom_text_loaded_keys}" ]]; then
-		custom_text_loaded_keys="${custom_key_name}"
-	else
-		custom_text_loaded_keys="${custom_text_loaded_keys}, ${custom_key_name}"
-	fi
-}
-
-
-# Supported overrides
-load_custom_text_overrides() {
-	custom_text_loaded_keys=""
-	custom_text_source=""
-
-	if [[ -f "${SUPER_CUSTOMTEXT_MANAGED_PLIST}.plist" ]]; then
-		custom_text_source="${SUPER_CUSTOMTEXT_MANAGED_PLIST}.plist"
-	elif [[ -f "${SUPER_CUSTOMTEXT_LOCAL_PLIST}.plist" ]]; then
-		custom_text_source="${SUPER_CUSTOMTEXT_LOCAL_PLIST}.plist"
-	else
-		return 0
-	fi
-
-	# Buttons / common strings
-	load_custom_text_override display_string_restart_now_button display_string_restart_now_button
-	load_custom_text_override display_string_install_now_button display_string_install_now_button
-	load_custom_text_override display_string_download_now_button display_string_download_now_button
-	load_custom_text_override display_string_defer_today_button display_string_defer_today_button
-	load_custom_text_override display_string_defer_tomorrow_button display_string_defer_tomorrow_button
-	load_custom_text_override display_string_defer_future_button display_string_defer_future_button
-	load_custom_text_override display_string_schedule_restart_button display_string_schedule_restart_button
-	load_custom_text_override display_string_schedule_install_button display_string_schedule_install_button
-	load_custom_text_override display_string_reschedule_button display_string_reschedule_button
-	load_custom_text_override display_string_cancel_button display_string_cancel_button
-	load_custom_text_override display_string_ok_button display_string_ok_button
-	load_custom_text_override display_string_minutes display_string_minutes
-	load_custom_text_override display_string_hour display_string_hour
-	load_custom_text_override display_string_hours display_string_hours
-	load_custom_text_override display_string_and display_string_and
-	load_custom_text_override display_string_workflow_title display_string_workflow_title
-
-	# Install now notifications
-	load_custom_text_override display_string_install_now_start_title display_string_install_now_start_title
-	load_custom_text_override display_string_install_now_start_body display_string_install_now_start_body
-	load_custom_text_override display_string_install_now_download_title display_string_install_now_download_title
-	load_custom_text_override display_string_install_now_download_body display_string_install_now_download_body
-	load_custom_text_override display_string_install_now_up_to_date_title display_string_install_now_up_to_date_title
-	load_custom_text_override display_string_install_now_up_to_date_body display_string_install_now_up_to_date_body
-	load_custom_text_override display_string_install_now_failed_title display_string_install_now_failed_title
-	load_custom_text_override display_string_install_now_failed_body display_string_install_now_failed_body
-
-	# Jamf policy notifications
-	load_custom_text_override display_string_jamf_pro_policy_title display_string_jamf_pro_policy_title
-	load_custom_text_override display_string_jamf_pro_policy_default_body display_string_jamf_pro_policy_default_body
-	load_custom_text_override display_string_jamf_pro_policy_deadline_schedule_body display_string_jamf_pro_policy_deadline_schedule_body
-	load_custom_text_override display_string_jamf_pro_policy_deadline_count_body display_string_jamf_pro_policy_deadline_count_body
-	load_custom_text_override display_string_jamf_pro_policy_deadline_date_body display_string_jamf_pro_policy_deadline_date_body
-
-	# Prepare notifications
-	load_custom_text_override display_string_prepare_title display_string_prepare_title
-	load_custom_text_override display_string_prepare_default_body display_string_prepare_default_body
-	load_custom_text_override display_string_prepare_deadline_schedule_body display_string_prepare_deadline_schedule_body
-	load_custom_text_override display_string_prepare_deadline_count_body display_string_prepare_deadline_count_body
-	load_custom_text_override display_string_prepare_deadline_date_body display_string_prepare_deadline_date_body
-
-	# Restart notifications
-	load_custom_text_override display_string_restart_title display_string_restart_title
-	load_custom_text_override display_string_restart_default_body display_string_restart_default_body
-	load_custom_text_override display_string_restart_deadline_schedule_body display_string_restart_deadline_schedule_body
-	load_custom_text_override display_string_restart_deadline_count_body display_string_restart_deadline_count_body
-	load_custom_text_override display_string_restart_deadline_date_body display_string_restart_deadline_date_body
-
-	# Non-system and Safari notifications
-	load_custom_text_override display_string_non_system_updates_title display_string_non_system_updates_title
-	load_custom_text_override display_string_non_system_updates_body display_string_non_system_updates_body
-	load_custom_text_override display_string_safari_update_title display_string_safari_update_title
-	load_custom_text_override display_string_safari_update_body display_string_safari_update_body
-
-	# Failed notification
-	load_custom_text_override display_string_failed_title display_string_failed_title
-	load_custom_text_override display_string_failed_body display_string_failed_body
-
-	# Insufficient storage dialog
-	load_custom_text_override display_string_insufficient_storage_title display_string_insufficient_storage_title
-	load_custom_text_override display_string_insufficient_storage_timeout display_string_insufficient_storage_timeout
-	load_custom_text_override display_string_insufficient_storage_default_body display_string_insufficient_storage_default_body
-	load_custom_text_override display_string_insufficient_storage_deadline_schedule_body display_string_insufficient_storage_deadline_schedule_body
-	load_custom_text_override display_string_insufficient_storage_deadline_count_body display_string_insufficient_storage_deadline_count_body
-	load_custom_text_override display_string_insufficient_storage_deadline_date_body display_string_insufficient_storage_deadline_date_body
-
-	# Power required dialog
-	load_custom_text_override display_string_power_required_title display_string_power_required_title
-	load_custom_text_override display_string_power_required_timeout display_string_power_required_timeout
-	load_custom_text_override display_string_power_required_default_body display_string_power_required_default_body
-	load_custom_text_override display_string_power_required_deadline_schedule_body display_string_power_required_deadline_schedule_body
-	load_custom_text_override display_string_power_required_deadline_count_body display_string_power_required_deadline_count_body
-	load_custom_text_override display_string_power_required_deadline_date_body display_string_power_required_deadline_date_body
-
-	# User choice dialog
-	load_custom_text_override display_string_user_choice_restart_title display_string_user_choice_restart_title
-	load_custom_text_override display_string_user_choice_install_title display_string_user_choice_install_title
-	load_custom_text_override display_string_user_choice_timeout display_string_user_choice_timeout
-	load_custom_text_override display_string_user_choice_menu_title display_string_user_choice_menu_title
-	load_custom_text_override display_string_user_choice_default_body display_string_user_choice_default_body
-	load_custom_text_override display_string_user_choice_date_body display_string_user_choice_date_body
-	load_custom_text_override display_string_user_choice_count_body display_string_user_choice_count_body
-	load_custom_text_override display_string_user_choice_date_count_body display_string_user_choice_date_count_body
-
-	# User schedule dialog
-	load_custom_text_override display_string_user_schedule_restart_title display_string_user_schedule_restart_title
-	load_custom_text_override display_string_user_schedule_install_title display_string_user_schedule_install_title
-	load_custom_text_override display_string_user_schedule_timeout display_string_user_schedule_timeout
-	load_custom_text_override display_string_user_schedule_calendar_title display_string_user_schedule_calendar_title
-	load_custom_text_override display_string_user_schedule_default_body display_string_user_schedule_default_body
-	load_custom_text_override display_string_user_schedule_date_body display_string_user_schedule_date_body
-
-	# Schedule reminder dialog
-	load_custom_text_override display_string_schedule_reminder_restart_title display_string_schedule_reminder_restart_title
-	load_custom_text_override display_string_schedule_reminder_install_title display_string_schedule_reminder_install_title
-	load_custom_text_override display_string_schedule_reminder_restart_timeout display_string_schedule_reminder_restart_timeout
-	load_custom_text_override display_string_schedule_reminder_install_timeout display_string_schedule_reminder_install_timeout
-	load_custom_text_override display_string_schedule_reminder_default_body display_string_schedule_reminder_default_body
-	load_custom_text_override display_string_schedule_reminder_reschedule_date_body display_string_schedule_reminder_reschedule_date_body
-	load_custom_text_override display_string_schedule_reminder_adjusted_body display_string_schedule_reminder_adjusted_body
-	load_custom_text_override display_string_schedule_reminder_adjusted_reschedule_date_body display_string_schedule_reminder_adjusted_reschedule_date_body
-
-	# Soft deadline dialog
-	load_custom_text_override display_string_soft_deadline_restart_title display_string_soft_deadline_restart_title
-	load_custom_text_override display_string_soft_deadline_install_title display_string_soft_deadline_install_title
-	load_custom_text_override display_string_soft_deadline_restart_timeout display_string_soft_deadline_restart_timeout
-	load_custom_text_override display_string_soft_deadline_install_timeout display_string_soft_deadline_install_timeout
-	load_custom_text_override display_string_soft_deadline_count_body display_string_soft_deadline_count_body
-	load_custom_text_override display_string_soft_deadline_date_body display_string_soft_deadline_date_body
-
-	# User auth dialog
-	load_custom_text_override display_string_user_auth_title display_string_user_auth_title
-	load_custom_text_override display_string_user_auth_timeout display_string_user_auth_timeout
-	load_custom_text_override display_string_user_auth_default_body display_string_user_auth_default_body
-	load_custom_text_override display_string_user_auth_download_body display_string_user_auth_download_body
-	load_custom_text_override display_string_user_auth_schedule_body display_string_user_auth_schedule_body
-	load_custom_text_override display_string_user_auth_deadline_count_body display_string_user_auth_deadline_count_body
-	load_custom_text_override display_string_user_auth_deadline_date_body display_string_user_auth_deadline_date_body
-	load_custom_text_override display_string_user_auth_password_title display_string_user_auth_password_title
-	load_custom_text_override display_string_user_auth_password_placeholder display_string_user_auth_password_placeholder
-	load_custom_text_override display_string_user_auth_retry_default_body display_string_user_auth_retry_default_body
-	load_custom_text_override display_string_user_auth_retry_download_body display_string_user_auth_retry_download_body
-	load_custom_text_override display_string_user_auth_retry_schedule_body display_string_user_auth_retry_schedule_body
-	load_custom_text_override display_string_user_auth_retry_deadline_count_body display_string_user_auth_retry_deadline_count_body
-	load_custom_text_override display_string_user_auth_retry_deadline_date_body display_string_user_auth_retry_deadline_date_body
-	load_custom_text_override display_string_user_auth_retry_password_title display_string_user_auth_retry_password_title
-	load_custom_text_override display_string_user_auth_retry_password_placeholder display_string_user_auth_retry_password_placeholder
-
-	if [[ -n "${custom_text_loaded_keys}" ]]; then
-		log_super "CustomText: Loaded overrides from ${custom_text_source}: ${custom_text_loaded_keys}"
-	else
-		log_super "CustomText: Found ${custom_text_source}, but no matching override keys were loaded."
-	fi
 }
 
 # Validate the code signing signature of the specified ${1} plist and return "UNSIGNED", "INVALID", or the output the valid code signature details.
@@ -5957,6 +5735,27 @@ check_deadlines_days_date() {
 	fi
 	[[ "${verbose_mode}" == "TRUE" ]] && log_super "Verbose Mode: Function ${FUNCNAME[0]}: Line ${LINENO}: display_string_deadline is: ${display_string_deadline}"
 	
+	# Optimize hard deadline string
+	unset display_string_deadline_hard
+
+	if [[ -n "${deadline_date_hard}" ]]; then
+		local deadline_date_hard_time_only
+		deadline_date_hard_time_only=$(date -r "${deadline_date_hard_epoch}" "+${DISPLAY_STRING_FORMAT_TIME}" | sed 's/^ *//g')
+		if [[ $(date -r "${deadline_date_hard_epoch}" +%H:%M) == "00:00" ]]; then
+			display_string_deadline_hard=$(date -r "${deadline_date_hard_epoch}" "+${DISPLAY_STRING_FORMAT_DATE}")
+		else
+			display_string_deadline_hard="$(date -r "${deadline_date_hard_epoch}" "+${DISPLAY_STRING_FORMAT_DATE}")${DISPLAY_STRING_FORMAT_DATE_TIME_SEPARATOR}${deadline_date_hard_time_only}"
+		fi
+	elif [[ -n "${deadline_days_hard}" ]]; then
+		if [[ $(date -r "${deadline_days_hard_epoch}" +%H:%M) == "00:00" ]]; then
+			display_string_deadline_hard=$(date -r "${deadline_days_hard_epoch}" "+${DISPLAY_STRING_FORMAT_DATE}")
+		else
+			local deadline_days_hard_time_only
+			deadline_days_hard_time_only=$(date -r "${deadline_days_hard_epoch}" "+${DISPLAY_STRING_FORMAT_TIME}" | sed 's/^ *//g')
+			display_string_deadline_hard="$(date -r "${deadline_days_hard_epoch}" "+${DISPLAY_STRING_FORMAT_DATE}")${DISPLAY_STRING_FORMAT_DATE_TIME_SEPARATOR}${deadline_days_hard_time_only}"
+		fi
+	fi
+	
 	# If there is a ${deadline_epoch}, then make sure no user deferral timer or display timeout exceeds the deadline.
 	if [[ -n "${deadline_epoch}" ]]; then
 		local deferral_timer_deadline_minutes
@@ -9695,7 +9494,11 @@ set_display_strings_language() {
 	display_string_soft_deadline_restart_timeout="* Automatic restart in"
 	display_string_soft_deadline_install_timeout="* Automatic installation in"
 	display_string_soft_deadline_count_body="You have deferred the maximum number of ${display_string_deadline_count_maximum} times."
-	display_string_soft_deadline_date_body="The deferment deadline has passed:\n${display_string_deadline}."
+	if [[ -n "${display_string_deadline_hard}" ]]; then
+		display_string_soft_deadline_date_body="The deferment deadline has passed:\n${display_string_deadline}.\n\nYour computer will automatically restart to apply required updates on:\n${display_string_deadline_hard}."
+	else
+		display_string_soft_deadline_date_body="The deferment deadline has passed:\n${display_string_deadline}."
+	fi
 	
 	#### Language for dialog_user_auth(), an interactive dialog to collect user credentials for macOS update/upgrade workflow
 	display_string_user_auth_title="${display_string_workflow_title} Requires Authentication"
@@ -9714,9 +9517,6 @@ set_display_strings_language() {
 	display_string_user_auth_retry_deadline_date_body="The deferment deadline of ${display_string_deadline} has passed.\n\nYou must enter the password for user \"${current_user_real_name}\" to install the ${display_string_workflow_title}.\n"
 	display_string_user_auth_retry_password_title="Authentication Failed - Try Password Again:"
 	display_string_user_auth_retry_password_placeholder="Password Required"
-	
-	#### Language from customtext override plist
-	load_custom_text_overrides
 	
 	#### The following code sets the appropriate ${display_icon} for macOS light or dark mode but it does not affect the display strings.
 	{ [[ "${current_user_appearance_mode}" == "LIGHT" ]] || [[ -z "${current_user_appearance_mode}" ]]; } && display_icon="${display_icon_light}"
