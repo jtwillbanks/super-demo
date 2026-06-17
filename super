@@ -6493,10 +6493,10 @@ workflow_check_software_status() {
 			msu_sanitized_list=$(echo "${msu_list}" | grep -e 'Label' -e 'Title' | tr -d '\n' | sed -e 's/^* //' -e 's/* /\n/g' -e 's/\tTitle/,Title/g' -e 's/, /,/g' -e 's/: /:/g')
 			[[ "${verbose_mode}" == "TRUE" ]] && log_super "Verbose Mode: Function ${FUNCNAME[0]}: Line ${LINENO}: msu_sanitized_list is:\n${msu_sanitized_list}"
 			local non_system_msu_array
-			non_system_msu_array=($(echo "${msu_sanitized_list}" | awk -F ',' '!/macOS/ {print $1 "," $2 "," $4 "," $3}'))
+			non_system_msu_array=($(echo "${msu_sanitized_list}" | awk -F ',' 'NF && !/macOS/ {print $1 "," $2 "," $4 "," $3}'))
 			[[ "${verbose_mode}" == "TRUE" ]] && log_super "Verbose Mode: Function ${FUNCNAME[0]}: Line ${LINENO}: non_system_msu_array is:\n${non_system_msu_array[*]}"
 			local macos_msu_array
-			macos_msu_array=($(echo "${msu_sanitized_list}" | grep 'macOS' | awk -F ',' '{print $1 "," $2 "," $4 "," $3}' | sort -t ':' -k5 -V -r))
+			macos_msu_array=($(echo "${msu_sanitized_list}" | awk -F ',' 'NF && /macOS/ {print $1 "," $2 "," $4 "," $3}' | sort -t ':' -k5 -V -r))
 			[[ "${verbose_mode}" == "TRUE" ]] && log_super "Verbose Mode: Function ${FUNCNAME[0]}: Line ${LINENO}: macos_msu_array is:\n${macos_msu_array[*]}"
 			local macos_msu_major_upgrade
 			macos_msu_major_upgrade="FALSE"
